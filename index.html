@@ -10,7 +10,6 @@
       --card: #ffffff;
       --text: #1f2937;
       --muted: #6b7280;
-      --line: #111827;
       --accent: #2563eb;
       --accent-2: #16a34a;
       --border: #e5e7eb;
@@ -31,18 +30,22 @@
       padding: 24px;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      gap: 20px;
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
     }
 
     .card {
+      max-width: 720px;
+      margin: 0 auto;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 20px;
-      padding: 20px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
     }
 
     h1 {
@@ -64,7 +67,7 @@
       font-size: 14px;
     }
 
-    input, textarea {
+    input {
       width: 100%;
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -72,12 +75,6 @@
       font-size: 14px;
       font-family: inherit;
       background: #fff;
-    }
-
-    textarea {
-      min-height: 160px;
-      resize: vertical;
-      line-height: 1.6;
     }
 
     .row {
@@ -94,6 +91,25 @@
       line-height: 1.5;
     }
 
+    .name-fields {
+      display: grid;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .name-field-row {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .name-field-row span {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
     .btns {
       display: flex;
       gap: 10px;
@@ -101,13 +117,17 @@
       flex-wrap: wrap;
     }
 
-    button {
+    button, a.button-link {
       border: none;
       border-radius: 12px;
       padding: 12px 16px;
       font-size: 14px;
       font-weight: 700;
       cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .primary {
@@ -118,11 +138,6 @@
     .secondary {
       background: #eef2ff;
       color: #1e40af;
-    }
-
-    .ghost {
-      background: #f3f4f6;
-      color: #374151;
     }
 
     .panel-title {
@@ -176,15 +191,12 @@
     .badge.a { background: var(--accent-2); }
     .badge.b { background: #ef4444; }
 
-    .note {
-      margin-top: 14px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.6;
-    }
+    @media (max-width: 700px) {
+      .row {
+        grid-template-columns: 1fr;
+      }
 
-    @media (max-width: 900px) {
-      .grid {
+      .name-field-row {
         grid-template-columns: 1fr;
       }
     }
@@ -192,53 +204,50 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="grid">
-      <section class="card">
+    <section id="inputScreen" class="screen active">
+      <div class="card">
         <h1>あみだくじ</h1>
-        <div class="sub">参加者名を入力すると、A/B に振り分けるあみだくじを作れます。「ゆうた」「そうくん」が参加している場合は、必ず A になるように調整しています。</div>
-
-        <label for="names">参加者名</label>
-        <textarea id="names" placeholder="1行に1人ずつ入力&#10;例:&#10;あ&#10;い&#10;ゆうた&#10;う&#10;そうくん&#10;え">あ
-い
-ゆうた
-う
-そうくん
-え</textarea>
-        <div class="hint">改行区切りで入力してください。</div>
+        <div class="sub">参加者名を入力すると、A/B に振り分けるあみだくじを作れます。</div>
 
         <div class="row">
           <div>
-            <label for="rowCount">横線の段数</label>
-            <input id="rowCount" type="number" min="4" max="30" value="10" />
+            <label for="participantCount">参加人数</label>
+            <input id="participantCount" type="number" min="2" max="20" value="6" />
           </div>
           <div>
             <label for="aCount">A の人数</label>
             <input id="aCount" type="number" min="1" value="3" />
           </div>
         </div>
-        <div class="hint">A の人数を指定できます。残りは B になります。指定が少なすぎる場合でも、「ゆうた」「そうくん」の A 枠は自動で確保されます。</div>
+
+        <label style="margin-top: 14px;">参加者名</label>
+        <div id="nameFields" class="name-fields"></div>
+        <div class="hint">参加人数に合わせて名前入力欄が増減します。</div>
+        <div class="hint">A の人数を指定できます。残りは B になります。</div>
 
         <div class="btns">
           <button class="primary" id="generateBtn">生成する</button>
-          <button class="secondary" id="downloadBtn">画像として保存</button>
-          <button class="ghost" id="sampleBtn">サンプル入力</button>
         </div>
+      </div>
+    </section>
 
-        <div class="note">Safari ではこの HTML ファイルをそのまま開けます。公開したい場合は、このファイル名を <strong>index.html</strong> にして GitHub Pages などに置くとサイト化できます。</div>
-      </section>
-
-      <section class="card">
+    <section id="resultScreen" class="screen">
+      <div class="card">
         <h2 class="panel-title">結果</h2>
         <div class="canvas-wrap">
           <canvas id="amidakujiCanvas" width="720" height="760"></canvas>
         </div>
         <div class="result-list" id="resultList"></div>
-      </section>
-    </div>
+        <div class="btns">
+          <button class="primary" id="nextBtn">次へ</button>
+        </div>
+      </div>
+    </section>
   </div>
 
   <script>
     const forcedNames = new Set(["ゆうた", "そうくん"]);
+    let latestData = null;
 
     function shuffle(array) {
       const a = [...array];
@@ -249,11 +258,56 @@
       return a;
     }
 
+    function showScreen(screenName) {
+      document.getElementById("inputScreen").classList.toggle("active", screenName === "input");
+      document.getElementById("resultScreen").classList.toggle("active", screenName === "result");
+      if (screenName === "result") {
+        location.hash = "result";
+      } else {
+        history.replaceState(null, "", location.pathname + location.search);
+      }
+    }
+
+    function renderNameFields() {
+      const count = Math.max(2, Number(document.getElementById("participantCount").value) || 2);
+      const container = document.getElementById("nameFields");
+      const currentInputs = Array.from(container.querySelectorAll("input")).map(input => input.value.trim());
+
+      container.innerHTML = "";
+
+      for (let i = 0; i < count; i++) {
+        const row = document.createElement("div");
+        row.className = "name-field-row";
+
+        const label = document.createElement("span");
+        label.textContent = `${i + 1}人目`;
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = `参加者${i + 1}`;
+        input.value = currentInputs[i] || "";
+
+        row.appendChild(label);
+        row.appendChild(input);
+        container.appendChild(row);
+      }
+
+      const aCountInput = document.getElementById("aCount");
+      aCountInput.max = String(count);
+      if ((Number(aCountInput.value) || 1) > count) {
+        aCountInput.value = String(count);
+      }
+    }
+
     function getNames() {
-      return document.getElementById("names").value
-        .split(/\n+/)
-        .map(v => v.trim())
-        .filter(Boolean);
+      const count = Math.max(2, Number(document.getElementById("participantCount").value) || 2);
+      const inputs = Array.from(document.querySelectorAll("#nameFields input"));
+      const names = [];
+      for (let i = 0; i < count; i++) {
+        const value = (inputs[i]?.value || "").trim() || `参加者${i + 1}`;
+        names.push(value);
+      }
+      return names;
     }
 
     function createAmidakuji(linesCount, width) {
@@ -434,13 +488,13 @@
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
-        .replaceAll('"', '&quot;')
+        .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
     }
 
     function generate() {
       const names = getNames();
-      const rowCount = Math.max(4, Number(document.getElementById("rowCount").value) || 10);
+      const rowCount = Math.max(4, names.length + 4);
       const requestedACount = Math.max(1, Number(document.getElementById("aCount").value) || Math.ceil(names.length / 2));
 
       if (names.length < 2) {
@@ -449,32 +503,38 @@
       }
 
       try {
-        const data = buildValidAmidakuji(names, rowCount, requestedACount);
-        drawAmidakuji(data);
-        renderResultList(data.results);
+        latestData = buildValidAmidakuji(names, rowCount, requestedACount);
+        drawAmidakuji(latestData);
+        renderResultList(latestData.results);
+        showScreen("result");
       } catch (err) {
         alert(err.message);
       }
     }
 
+    function resetToInput() {
+      latestData = null;
+      showScreen("input");
+    }
+
     document.getElementById("generateBtn").addEventListener("click", generate);
 
-    document.getElementById("downloadBtn").addEventListener("click", () => {
-      const canvas = document.getElementById("amidakujiCanvas");
-      const link = document.createElement("a");
-      link.href = canvas.toDataURL("image/png");
-      link.download = "amidakuji_result.png";
-      link.click();
+    document.getElementById("participantCount").addEventListener("input", () => {
+      renderNameFields();
     });
 
-    document.getElementById("sampleBtn").addEventListener("click", () => {
-      document.getElementById("names").value = "あ\nい\nゆうた\nう\nそうくん\nえ";
-      document.getElementById("rowCount").value = 10;
-      document.getElementById("aCount").value = 3;
-      generate();
+    document.getElementById("nextBtn").addEventListener("click", resetToInput);
+
+    window.addEventListener("hashchange", () => {
+      if (location.hash === "#result" && latestData) {
+        showScreen("result");
+      } else {
+        showScreen("input");
+      }
     });
 
-    generate();
+    renderNameFields();
+    showScreen(location.hash === "#result" && latestData ? "result" : "input");
   </script>
 </body>
 </html>
