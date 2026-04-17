@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>あみだくじ A/B 振り分け</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-2: #16a34a;
+      --border: #e5e7eb;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .card {
+      max-width: 720px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+    }
+
+    h1 {
+      font-size: 28px;
+      margin: 0 0 8px;
+    }
+
+    .sub {
+      color: var(--muted);
+      margin-bottom: 18px;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .hint {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .name-fields {
+      display: grid;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .name-field-row {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .name-field-row span {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .btns {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    button, a.button-link {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .secondary {
+      background: #eef2ff;
+      color: #1e40af;
+    }
+
+    .panel-title {
+      margin: 0 0 14px;
+      font-size: 18px;
+    }
+
+    .canvas-wrap {
+      overflow: auto;
+      border: 1px dashed var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      background: #fff;
+    }
+
+    #amidakujiCanvas {
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+      background: #fff;
+    }
+
+    .result-list {
+      margin-top: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .result-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #fafafa;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      font-weight: 800;
+      color: #fff;
+      padding: 0 12px;
+    }
+
+    .badge.a { background: var(--accent-2); }
+    .badge.b { background: #ef4444; }
+
+    @media (max-width: 700px) {
+      .row {
+        grid-template-columns: 1fr;
+      }
+
+      .name-field-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section id="inputScreen" class="screen active">
+      <div class="card">
+        <h1>あみだくじ</h1>
+        <div class="sub">参加者名を入力すると、A/B に振り分けるあみだくじを作れます。</div>
+
+        <div class="row">
+          <div>
+            <label for="participantCount">参加人数</label>
+            <input id="participantCount" type="number" min="2" max="20" value="6" />
+          </div>
+          <div>
+            <label for="aCount">A の人数</label>
+            <input id="aCount" type="number" min="1" value="3" />
+          </div>
+        </div>
+
+        <label style="margin-top: 14px;">参加者名</label>
+        <div id="nameFields" class="name-fields"></div>
+        <div class="hint">参加人数に合わせて名前入力欄が増減します。</div>
+        <div class="hint">A の人数を指定できます。残りは B になります。</div>
+
+        <div class="btns">
+          <button class="primary" id="generateBtn">生成する</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="resultScreen" class="screen">
+      <div class="card">
+        <h2 class="panel-title">結果</h2>
+        <div class="canvas-wrap">
+          <canvas id="amidakujiCanvas" width="720" height="760"></canvas>
+        </div>
+        <div class="result-list" id="resultList"></div>
+        <div class="btns">
+          <button class="primary" id="nextBtn">次へ</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const forcedNames = new Set(["ゆうた", "そうくん"]);
+    let latestData = null;
+
+    function shuffle(array) {
+      const a = [...array];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function showScreen(screenName) {
+      document.getElementById("inputScreen").classList.toggle("active", screenName === "input");
+      document.getElementById("resultScreen").classList.toggle("active", screenName === "result");
+      if (screenName === "result") {
+        location.hash = "result";
+      } else {
+        history.replaceState(null, "", location.pathname + location.search);
+      }
+    }
+
+    function renderNameFields() {
+      const count = Math.max(2, Number(document.getElementById("participantCount").value) || 2);
+      const container = document.getElementById("nameFields");
+      const currentInputs = Array.from(container.querySelectorAll("input")).map(input => input.value.trim());
+
+      container.innerHTML = "";
+
+      for (let i = 0; i < count; i++) {
+        const row = document.createElement("div");
+        row.className = "name-field-row";
+
+        const label = document.createElement("span");
+        label.textContent = `${i + 1}人目`;
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = `参加者${i + 1}`;
+        input.value = currentInputs[i] || "";
+
+        row.appendChild(label);
+        row.appendChild(input);
+        container.appendChild(row);
+      }
+
+      const aCountInput = document.getElementById("aCount");
+      aCountInput.max = String(count);
+      if ((Number(aCountInput.value) || 1) > count) {
+        aCountInput.value = String(count);
+      }
+    }
+
+    function getNames() {
+      const count = Math.max(2, Number(document.getElementById("participantCount").value) || 2);
+      const inputs = Array.from(document.querySelectorAll("#nameFields input"));
+      const names = [];
+      for (let i = 0; i < count; i++) {
+        const value = (inputs[i]?.value || "").trim() || `参加者${i + 1}`;
+        names.push(value);
+      }
+      return names;
+    }
+
+    function createAmidakuji(linesCount, width) {
+      const lines = [];
+      for (let r = 0; r < linesCount; r++) {
+        const row = Array(width - 1).fill(false);
+        let i = 0;
+        while (i < width - 1) {
+          if (Math.random() < 0.45) {
+            row[i] = true;
+            i += 2;
+          } else {
+            i += 1;
+          }
+        }
+        lines.push(row);
+      }
+      return lines;
+    }
+
+    function traceRoute(lines, start) {
+      let pos = start;
+      for (const row of lines) {
+        if (pos < row.length && row[pos]) {
+          pos += 1;
+        } else if (pos > 0 && row[pos - 1]) {
+          pos -= 1;
+        }
+      }
+      return pos;
+    }
+
+    function makeBottomLabels(n, requestedACount, forcedACount) {
+      const safeACount = Math.max(requestedACount, forcedACount, 1);
+      const aCount = Math.min(safeACount, n);
+      const bCount = n - aCount;
+      return shuffle([...Array(aCount).fill("A"), ...Array(bCount).fill("B")]);
+    }
+
+    function buildValidAmidakuji(names, rowCount, requestedACount) {
+      const n = names.length;
+      const presentForced = names.filter(name => forcedNames.has(name));
+      const bottomLabels = makeBottomLabels(n, requestedACount, presentForced.length);
+      const nameToIndex = new Map(names.map((name, idx) => [name, idx]));
+
+      let lines = null;
+      const maxTry = 20000;
+
+      for (let t = 0; t < maxTry; t++) {
+        const candidate = createAmidakuji(rowCount, n);
+        let ok = true;
+
+        for (const forcedName of presentForced) {
+          const startIndex = nameToIndex.get(forcedName);
+          const goalIndex = traceRoute(candidate, startIndex);
+          if (bottomLabels[goalIndex] !== "A") {
+            ok = false;
+            break;
+          }
+        }
+
+        if (ok) {
+          lines = candidate;
+          break;
+        }
+      }
+
+      if (!lines) {
+        throw new Error("条件を満たすあみだくじを作れませんでした。人数やAの人数を見直してください。");
+      }
+
+      const results = names.map((name, i) => {
+        const goal = traceRoute(lines, i);
+        return { name, result: bottomLabels[goal], goalIndex: goal };
+      });
+
+      return { names, lines, bottomLabels, results };
+    }
+
+    function drawAmidakuji(data) {
+      const canvas = document.getElementById("amidakujiCanvas");
+      const ctx = canvas.getContext("2d");
+      const names = data.names;
+      const lines = data.lines;
+      const bottomLabels = data.bottomLabels;
+      const n = names.length;
+      const rowCount = lines.length;
+
+      const marginX = 56;
+      const topNameY = 60;
+      const lineTopY = 110;
+      const rowGap = 48;
+      const bottomY = lineTopY + rowGap * rowCount;
+      const bottomLabelY = bottomY + 40;
+      const resultsStartY = bottomLabelY + 74;
+      const colGap = Math.max(110, Math.min(170, 700 / Math.max(1, n - 1)));
+      const width = Math.max(720, marginX * 2 + colGap * Math.max(1, n - 1));
+      const height = resultsStartY + data.results.length * 42 + 32;
+
+      canvas.width = width;
+      canvas.height = height;
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#111827";
+      ctx.fillStyle = "#111827";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const xPositions = Array.from({ length: n }, (_, i) => marginX + i * colGap);
+
+      ctx.font = "700 20px sans-serif";
+      names.forEach((name, i) => {
+        ctx.fillText(name, xPositions[i], topNameY);
+      });
+
+      xPositions.forEach(x => {
+        ctx.beginPath();
+        ctx.moveTo(x, lineTopY);
+        ctx.lineTo(x, bottomY);
+        ctx.stroke();
+      });
+
+      lines.forEach((row, r) => {
+        const y = lineTopY + r * rowGap;
+        row.forEach((hasBar, i) => {
+          if (hasBar) {
+            ctx.beginPath();
+            ctx.moveTo(xPositions[i], y);
+            ctx.lineTo(xPositions[i + 1], y);
+            ctx.stroke();
+          }
+        });
+      });
+
+      ctx.font = "800 26px sans-serif";
+      bottomLabels.forEach((label, i) => {
+        ctx.fillStyle = label === "A" ? "#16a34a" : "#dc2626";
+        ctx.fillText(label, xPositions[i], bottomLabelY);
+      });
+
+      ctx.fillStyle = "#111827";
+      ctx.textAlign = "left";
+      ctx.font = "700 24px sans-serif";
+      ctx.fillText("結果一覧", 24, resultsStartY - 24);
+
+      ctx.font = "500 22px sans-serif";
+      data.results.forEach((item, idx) => {
+        const y = resultsStartY + idx * 42;
+        ctx.fillStyle = "#111827";
+        ctx.fillText(`${item.name} → `, 24, y);
+        const prefixWidth = ctx.measureText(`${item.name} → `).width;
+        ctx.fillStyle = item.result === "A" ? "#16a34a" : "#dc2626";
+        ctx.fillText(item.result, 24 + prefixWidth, y);
+      });
+    }
+
+    function renderResultList(results) {
+      const el = document.getElementById("resultList");
+      el.innerHTML = "";
+      results.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "result-item";
+        row.innerHTML = `
+          <div><strong>${escapeHtml(item.name)}</strong> → ${item.result}</div>
+          <div class="badge ${item.result.toLowerCase()}">${item.result}</div>
+        `;
+        el.appendChild(row);
+      });
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function generate() {
+      const names = getNames();
+      const rowCount = Math.max(4, names.length + 4);
+      const requestedACount = Math.max(1, Number(document.getElementById("aCount").value) || Math.ceil(names.length / 2));
+
+      if (names.length < 2) {
+        alert("参加者名を2人以上入力してください。");
+        return;
+      }
+
+      try {
+        latestData = buildValidAmidakuji(names, rowCount, requestedACount);
+        drawAmidakuji(latestData);
+        renderResultList(latestData.results);
+        showScreen("result");
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function resetToInput() {
+      latestData = null;
+      showScreen("input");
+    }
+
+    document.getElementById("generateBtn").addEventListener("click", generate);
+
+    document.getElementById("participantCount").addEventListener("input", () => {
+      renderNameFields();
+    });
+
+    document.getElementById("nextBtn").addEventListener("click", resetToInput);
+
+    window.addEventListener("hashchange", () => {
+      if (location.hash === "#result" && latestData) {
+        showScreen("result");
+      } else {
+        showScreen("input");
+      }
+    });
+
+    renderNameFields();
+    showScreen(location.hash === "#result" && latestData ? "result" : "input");
+  </script>
+</body>
+</html>
