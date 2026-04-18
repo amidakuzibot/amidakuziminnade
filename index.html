@@ -30,16 +30,11 @@
       padding: 24px;
     }
 
-    .screen {
-      display: none;
-    }
-
-    .screen.active {
-      display: block;
-    }
+    .screen { display: none; }
+    .screen.active { display: block; }
 
     .card {
-      max-width: 720px;
+      max-width: 760px;
       margin: 0 auto;
       background: var(--card);
       border: 1px solid var(--border);
@@ -48,9 +43,17 @@
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
     }
 
+    h1, h2 {
+      margin: 0 0 8px;
+    }
+
     h1 {
       font-size: 28px;
-      margin: 0 0 8px;
+    }
+
+    .panel-title {
+      font-size: 24px;
+      margin-bottom: 14px;
     }
 
     .sub {
@@ -117,17 +120,13 @@
       flex-wrap: wrap;
     }
 
-    button, a.button-link {
+    button {
       border: none;
       border-radius: 12px;
       padding: 12px 16px;
       font-size: 14px;
       font-weight: 700;
       cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
     }
 
     .primary {
@@ -138,11 +137,6 @@
     .secondary {
       background: #eef2ff;
       color: #1e40af;
-    }
-
-    .panel-title {
-      margin: 0 0 14px;
-      font-size: 18px;
     }
 
     .canvas-wrap {
@@ -191,6 +185,32 @@
     .badge.a { background: var(--accent-2); }
     .badge.b { background: #ef4444; }
 
+    .loading-box {
+      padding: 30px 0 10px;
+    }
+
+    .loading-track {
+      width: 100%;
+      height: 14px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .loading-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #2563eb, #16a34a);
+      transition: width 3s linear;
+    }
+
+    .loading-text {
+      text-align: center;
+      color: var(--muted);
+      margin-top: 14px;
+      font-size: 14px;
+    }
+
     @media (max-width: 700px) {
       .row {
         grid-template-columns: 1fr;
@@ -231,6 +251,19 @@
       </div>
     </section>
 
+    <section id="loadingScreen" class="screen">
+      <div class="card">
+        <h2 class="panel-title">抽選中...</h2>
+        <div class="sub">ドラムロールのあとに結果を表示します。</div>
+        <div class="loading-box">
+          <div class="loading-track">
+            <div id="loadingBar" class="loading-bar"></div>
+          </div>
+          <div class="loading-text">3秒後に結果を表示します</div>
+        </div>
+      </div>
+    </section>
+
     <section id="resultScreen" class="screen">
       <div class="card">
         <h2 class="panel-title">結果</h2>
@@ -240,6 +273,7 @@
         <div class="result-list" id="resultList"></div>
         <div class="btns">
           <button class="primary" id="nextBtn">次へ</button>
+          <button class="secondary" id="downloadBtn">画像として保存</button>
         </div>
       </div>
     </section>
@@ -248,6 +282,8 @@
   <script>
     const forcedNames = new Set(["ゆうた", "そうくん"]);
     let latestData = null;
+    let loadingTimer = null;
+    let drumAudio = null;
 
     function shuffle(array) {
       const a = [...array];
@@ -260,9 +296,13 @@
 
     function showScreen(screenName) {
       document.getElementById("inputScreen").classList.toggle("active", screenName === "input");
+      document.getElementById("loadingScreen").classList.toggle("active", screenName === "loading");
       document.getElementById("resultScreen").classList.toggle("active", screenName === "result");
+
       if (screenName === "result") {
         location.hash = "result";
+      } else if (screenName === "loading") {
+        location.hash = "loading";
       } else {
         history.replaceState(null, "", location.pathname + location.search);
       }
@@ -492,6 +532,77 @@
         .replaceAll("'", "&#039;");
     }
 
+    function startDrumRoll() {
+      stopDrumRoll();
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        const ctx = new AudioContextClass();
+        drumAudio = { ctx };
+        const duration = 3.0;
+        const interval = 0.12;
+        const now = ctx.currentTime;
+
+        for (let t = 0; t < duration; t += interval) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(110 + Math.random() * 20, now + t);
+          gain.gain.setValueAtTime(0.0001, now + t);
+          gain.gain.exponentialRampToValueAtTime(0.25, now + t + 0.005);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + t);
+          osc.stop(now + t + 0.09);
+        }
+
+        const finalOsc = ctx.createOscillator();
+        const finalGain = ctx.createGain();
+        finalOsc.type = "sine";
+        finalOsc.frequency.setValueAtTime(660, now + duration - 0.05);
+        finalGain.gain.setValueAtTime(0.0001, now + duration - 0.05);
+        finalGain.gain.exponentialRampToValueAtTime(0.18, now + duration);
+        finalGain.gain.exponentialRampToValueAtTime(0.0001, now + duration + 0.4);
+        finalOsc.connect(finalGain);
+        finalGain.connect(ctx.destination);
+        finalOsc.start(now + duration - 0.05);
+        finalOsc.stop(now + duration + 0.45);
+      } catch (_) {
+      }
+    }
+
+    function stopDrumRoll() {
+      if (drumAudio && drumAudio.ctx) {
+        drumAudio.ctx.close().catch(() => {});
+      }
+      drumAudio = null;
+    }
+
+    function startLoadingThenShowResult() {
+      const bar = document.getElementById("loadingBar");
+      bar.style.transition = "none";
+      bar.style.width = "0%";
+      showScreen("loading");
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          bar.style.transition = "width 3s linear";
+          bar.style.width = "100%";
+        });
+      });
+
+      startDrumRoll();
+
+      if (loadingTimer) clearTimeout(loadingTimer);
+      loadingTimer = setTimeout(() => {
+        drawAmidakuji(latestData);
+        renderResultList(latestData.results);
+        stopDrumRoll();
+        showScreen("result");
+      }, 3000);
+    }
+
     function generate() {
       const names = getNames();
       const rowCount = Math.max(4, names.length + 4);
@@ -504,9 +615,7 @@
 
       try {
         latestData = buildValidAmidakuji(names, rowCount, requestedACount);
-        drawAmidakuji(latestData);
-        renderResultList(latestData.results);
-        showScreen("result");
+        startLoadingThenShowResult();
       } catch (err) {
         alert(err.message);
       }
@@ -514,27 +623,37 @@
 
     function resetToInput() {
       latestData = null;
+      if (loadingTimer) clearTimeout(loadingTimer);
+      loadingTimer = null;
+      stopDrumRoll();
+      document.getElementById("loadingBar").style.width = "0%";
       showScreen("input");
     }
 
     document.getElementById("generateBtn").addEventListener("click", generate);
-
-    document.getElementById("participantCount").addEventListener("input", () => {
-      renderNameFields();
-    });
-
+    document.getElementById("participantCount").addEventListener("input", renderNameFields);
     document.getElementById("nextBtn").addEventListener("click", resetToInput);
+
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      const canvas = document.getElementById("amidakujiCanvas");
+      const link = document.createElement("a");
+      link.href = canvas.toDataURL("image/png");
+      link.download = "amidakuji_result.png";
+      link.click();
+    });
 
     window.addEventListener("hashchange", () => {
       if (location.hash === "#result" && latestData) {
         showScreen("result");
+      } else if (location.hash === "#loading" && latestData) {
+        showScreen("loading");
       } else {
         showScreen("input");
       }
     });
 
     renderNameFields();
-    showScreen(location.hash === "#result" && latestData ? "result" : "input");
+    showScreen("input");
   </script>
 </body>
 </html>
